@@ -4,6 +4,7 @@ import math
 import requests
 import json
 from typing import Dict
+import cfscrape
 
 
 class epg_item:
@@ -24,7 +25,8 @@ class epg_item:
 class teleboy:
     __base__ = "https://www.teleboy.ch/"
     __api__ = "https://tv.api.teleboy.ch/"
-    max_duration = 420
+    # short duration because of response size (max from teleboy is 323.6 KB)
+    max_duration = 30
 
     def get_epg_by_time(start_time: datetime.datetime = None, duration: int = None) -> Dict[epg_item, epg_item]:
         if not start_time:
@@ -34,7 +36,7 @@ class teleboy:
             duration = teleboy.max_duration
 
         if duration > teleboy.max_duration:
-            print("Duration too long max is 420 min")
+            print("Duration too long max is " + max_duration + " min")
             return
 
         return teleboy.__download__(start_time, start_time + datetime.timedelta(minutes=duration))
@@ -56,10 +58,10 @@ class teleboy:
     def __download__(start_time: datetime.datetime, end_time: datetime.datetime) -> Dict[epg_item, epg_item]:
         print("[*] Dowloading from " + start_time.isoformat() +
               " until " + end_time.isoformat())
-
-        response = requests.get("https://tv.api.teleboy.ch/epg/broadcasts?begin="+start_time.isoformat(
-        )+"&end="+end_time.isoformat()+"&limit=400&expand=station,logos,flags,primary_image&limit=0",
-            headers={"x-teleboy-apikey": "6ca99ddb3e659e57bbb9b1874055a711b254425815905abaacf262b64f02eb3d"})
+        scraper = cfscrape.create_scraper()
+        response = scraper.get("https://tv.api.teleboy.ch/epg/broadcasts?begin="+start_time.isoformat(
+        )+"&end="+end_time.isoformat()+"&expand=station,logos,flags,primary_image&limit=0",
+            headers={"x-teleboy-apikey": "db9501d64632a944f1b984d7acaf0b983c5bfcaa723a8dfcf24dd951354d1878"})
         raw_data = json.loads(response.text)
 
         data = []
@@ -67,7 +69,7 @@ class teleboy:
             for item in raw_data["data"]["items"]:
                 item_epg = {
                     "subtitle": item["subtitle"],
-                    "image": item["primary_image"]["base_path"],
+                    "image": item["primary_image"]["base_path"] + "raw/" + item["primary_image"]["hash"] + ".jpg",
                     "begin": dateutil.parser.parse(item["begin"]),
                     "end": dateutil.parser.parse(item["end"]),
                     "title": item["title"],
